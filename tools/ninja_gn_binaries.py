@@ -28,7 +28,13 @@ def get_platform():
     elif machine == 'aarch64':
         machine = 'arm64'
 
-    return f'{system}-{machine}'
+    platform_str = f'{system}-{machine}'
+
+    # Windows ARM doesn't have prebuilt binaries yet, use x86_64
+    if platform_str == 'windows-arm64':
+        platform_str = 'windows-amd64'
+
+    return platform_str
 
 
 PLATFORM = get_platform()
