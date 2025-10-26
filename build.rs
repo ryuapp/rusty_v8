@@ -487,11 +487,12 @@ fn patch_vs_toolchain_for_arm64() {
     return;
   }
 
-  let content = fs::read_to_string(vs_toolchain_path)
-    .unwrap_or_default();
+  let content = fs::read_to_string(vs_toolchain_path).unwrap_or_default();
 
   // Check if already patched
-  if content.contains("For ARM64 target, x64 debugger tools may not be available") {
+  if content
+    .contains("For ARM64 target, x64 debugger tools may not be available")
+  {
     return;
   }
 
@@ -508,7 +509,9 @@ fn patch_vs_toolchain_for_arm64() {
 
   if let Some(patched) = content.replace_once(search_str, replace_str) {
     if let Ok(_) = fs::write(vs_toolchain_path, patched) {
-      println!("cargo:warning=Patched build/vs_toolchain.py for ARM64 Windows support");
+      println!(
+        "cargo:warning=Patched build/vs_toolchain.py for ARM64 Windows support"
+      );
     }
   }
 }
@@ -520,7 +523,8 @@ trait ReplaceOnce {
 impl ReplaceOnce for String {
   fn replace_once(&self, from: &str, to: &str) -> Option<String> {
     if let Some(pos) = self.find(from) {
-      let mut result = String::with_capacity(self.len() - from.len() + to.len());
+      let mut result =
+        String::with_capacity(self.len() - from.len() + to.len());
       result.push_str(&self[..pos]);
       result.push_str(to);
       result.push_str(&self[pos + from.len()..]);
