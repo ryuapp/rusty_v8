@@ -251,6 +251,9 @@ fn build_v8(is_asan: bool) {
     download_ninja_gn_binaries();
   }
 
+  // Patch vs_toolchain.py for ARM64 Windows support
+  patch_vs_toolchain_for_arm64();
+
   download_rust_toolchain();
 
   // `#[cfg(...)]` attributes don't work as expected from build.rs -- they refer to the configuration
@@ -473,6 +476,57 @@ fn download_ninja_gn_binaries() {
   if env::var("NINJA").is_err() {
     unsafe {
       env::set_var("NINJA", ninja);
+    }
+  }
+}
+
+fn patch_vs_toolchain_for_arm64() {
+  // Patch build/vs_toolchain.py to skip x64 debugger tools when not available on ARM64
+  let vs_toolchain_path = Path::new("build/vs_toolchain.py");
+  if !vs_toolchain_path.exists() {
+    return;
+  }
+
+  let content = fs::read_to_string(vs_toolchain_path)
+    .unwrap_or_default();
+
+  // Check if already patched
+  if content.contains("For ARM64 target, x64 debugger tools may not be available") {
+    return;
+  }
+
+  // Find and replace the error handling in _CopyDebugger function
+  let search_str = r#"      else:
+        raise Exception('%s not found in "%s"\r\nYou must install '#;
+
+  let replace_str = r#"      else:
+        # For ARM64 target, x64 debugger tools may not be available
+        # Skip if building on ARM64 and x64 tools not found
+        if target_cpu == 'x64':
+          continue
+        raise Exception('%s not found in "%s"\r\nYou must install "#;
+
+  if let Some(patched) = content.replace_once(search_str, replace_str) {
+    if let Ok(_) = fs::write(vs_toolchain_path, patched) {
+      println!("cargo:warning=Patched build/vs_toolchain.py for ARM64 Windows support");
+    }
+  }
+}
+
+trait ReplaceOnce {
+  fn replace_once(&self, from: &str, to: &str) -> Option<String>;
+}
+
+impl ReplaceOnce for String {
+  fn replace_once(&self, from: &str, to: &str) -> Option<String> {
+    if let Some(pos) = self.find(from) {
+      let mut result = String::with_capacity(self.len() - from.len() + to.len());
+      result.push_str(&self[..pos]);
+      result.push_str(to);
+      result.push_str(&self[pos + from.len()..]);
+      Some(result)
+    } else {
+      None
     }
   }
 }
